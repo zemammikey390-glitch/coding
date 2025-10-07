@@ -1,0 +1,78 @@
+// src/App.jsx
+import React, { useState } from "react";
+import axios from "axios";
+
+function App() {
+  const [files, setFiles] = useState([]);
+  const [progress, setProgress] = useState(0);
+  const [message, setMessage] = useState("");
+
+  const handleUpload = async () => {
+    const formData = new FormData();
+    files.forEach(f => formData.append("files", f));
+
+    try {
+      const res = await axios.post("https://file-upload-api.onrender.com/upload", formData, {
+        onUploadProgress: (e) => setProgress(Math.round((e.loaded * 100) / e.total)),
+      });
+      setMessage("✅ Upload successful!");
+      console.log(res.data);
+    } catch (err) {
+      setMessage("❌ Upload failed!");
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100">
+      <div className="p-6 bg-white shadow-lg rounded-2xl w-96 text-center">
+        <h1 className="text-xl font-bold mb-4">File Upload Manager</h1>
+        <input type="file" multiple onChange={e => setFiles([...e.target.files])} />
+        <button
+          onClick={handleUpload}
+          className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg"
+        >
+          Upload
+        </button>
+        {progress > 0 && <p className="mt-2 text-gray-600">Uploading: {progress}%</p>}
+        {message && <p className="mt-2 font-semibold">{message}</p>}
+      </div>
+    </div>
+  );
+}
+
+export default App;
+
+
+
+
+
+
+// server.js
+import express from "express";
+import multer from "multer";
+import cors from "cors";
+import path from "path";
+import fs from "fs";
+
+const app = express();
+app.use(cors());
+app.use("/uploads", express.static("uploads"));
+
+const storage = multer.diskStorage({
+  destination: "uploads/",
+  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
+});
+const upload = multer({ storage });
+
+app.post("/upload", upload.array("files"), (req, res) => {
+  res.json({
+    message: "Files uploaded successfully",
+    files: req.files.map(f => ({
+      name: f.filename,
+      path: /uploads/${f.filename},
+      size: f.size,
+    })),
+  });
+});
+
+app.listen(5000, () => console.log("Server running on port 5000"));
